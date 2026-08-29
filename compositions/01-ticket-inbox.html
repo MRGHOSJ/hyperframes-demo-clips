@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+  </head>
+  <body>
+    <template>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        #root {
+          position: absolute;
+          inset: 0;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: #0a0e1a;
+          font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+          color: #e2e8f0;
+        }
+
+        /* Scan-line overlay */
+        .scanlines {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 100;
+          background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 0, 0, 0.03) 2px,
+            rgba(0, 0, 0, 0.03) 4px
+          );
+        }
+
+        /* Ambient particle layer */
+        .particles {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 99;
+          overflow: hidden;
+        }
+        .particle {
+          position: absolute;
+          width: 2px;
+          height: 2px;
+          background: rgba(59, 130, 246, 0.3);
+          border-radius: 50%;
+          animation: float-particle 20s linear infinite;
+        }
+        .particle:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 18s; }
+        .particle:nth-child(2) { left: 25%; animation-delay: -3s; animation-duration: 22s; }
+        .particle:nth-child(3) { left: 40%; animation-delay: -7s; animation-duration: 19s; }
+        .particle:nth-child(4) { left: 55%; animation-delay: -11s; animation-duration: 24s; }
+        .particle:nth-child(5) { left: 70%; animation-delay: -5s; animation-duration: 20s; }
+        .particle:nth-child(6) { left: 85%; animation-delay: -9s; animation-duration: 21s; }
+        .particle:nth-child(7) { left: 15%; animation-delay: -2s; animation-duration: 23s; }
+        .particle:nth-child(8) { left: 60%; animation-delay: -8s; animation-duration: 17s; }
+
+        @keyframes float-particle {
+          0% { transform: translateY(1100px) scale(1); opacity: 0; }
+          10% { opacity: 0.4; }
+          90% { opacity: 0.4; }
+          100% { transform: translateY(-50px) scale(0.5); opacity: 0; }
+        }
+
+        /* Header */
+        .header {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 72px;
+          background: #111827;
+          border-bottom: 1px solid #1f2937;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 40px;
+          z-index: 50;
+          opacity: 0;
+        }
+        .header-title {
+          font-size: 20px;
+          font-weight: 600;
+          color: #f1f5f9;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .header-title .dot {
+          width: 8px;
+          height: 8px;
+          background: #3b82f6;
+          border-radius: 50%;
+          box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+        }
+        .header-right {
+          display: flex;
+          align-items: center;
+          gap: 32px;
+        }
+        .ticket-counter {
+          font-family: "JetBrains Mono", "Consolas", monospace;
+          font-size: 14px;
+          color: #94a3b8;
+        }
+        .ticket-counter span {
+          color: #e2e8f0;
+          font-weight: 600;
+        }
+        .status-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: #10b981;
+          font-weight: 500;
+        }
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          background: #10b981;
+          border-radius: 50%;
+          box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Scroll container */
+        .scroll-wrapper {
+          position: absolute;
+          top: 72px;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          overflow: hidden;
+        }
+        .ticket-container {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          background: #0d1117;
+        }
+
+        /* Ticket cards */
+        .ticket-card {
+          display: flex;
+          align-items: center;
+          padding: 16px 40px;
+          background: #161b22;
+          border-left: 3px solid transparent;
+          min-height: 108px;
+          opacity: 0;
+        }
+        .ticket-card.priority-critical { border-left-color: #dc2626; }
+        .ticket-card.priority-high { border-left-color: #f59e0b; }
+        .ticket-card.priority-medium { border-left-color: #3b82f6; }
+        .ticket-card.priority-low { border-left-color: #6b7280; }
+
+        .priority-badge {
+          width: 72px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          text-align: center;
+          flex-shrink: 0;
+        }
+        .priority-badge.critical {
+          background: rgba(220, 38, 38, 0.15);
+          color: #fca5a5;
+        }
+        .priority-badge.high {
+          background: rgba(245, 158, 11, 0.15);
+          color: #fcd34d;
+        }
+        .priority-badge.medium {
+          background: rgba(59, 130, 246, 0.15);
+          color: #93c5fd;
+        }
+        .priority-badge.low {
+          background: rgba(107, 114, 128, 0.15);
+          color: #9ca3af;
+        }
+
+        .ticket-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 16px;
+          margin-right: 20px;
+          font-size: 16px;
+          flex-shrink: 0;
+        }
+        .ticket-icon.critical { background: rgba(220, 38, 38, 0.12); }
+        .ticket-icon.high { background: rgba(245, 158, 11, 0.12); }
+        .ticket-icon.medium { background: rgba(59, 130, 246, 0.12); }
+        .ticket-icon.low { background: rgba(107, 114, 128, 0.12); }
+
+        .ticket-content {
+          flex: 1;
+          min-width: 0;
+        }
+        .ticket-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 4px;
+        }
+        .ticket-id {
+          font-family: "JetBrains Mono", "Consolas", monospace;
+          font-size: 13px;
+          font-weight: 500;
+          color: #94a3b8;
+        }
+        .ticket-title {
+          font-size: 15px;
+          font-weight: 500;
+          color: #e2e8f0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .ticket-meta {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          font-size: 12px;
+          color: #94a3b8;
+        }
+        .ticket-meta .assignee {
+          color: #cbd5e1;
+        }
+        .ticket-timestamp {
+          font-family: "JetBrains Mono", "Consolas", monospace;
+          color: #94a3b8;
+        }
+      </style>
+
+      <div data-hf-id="hf-y43j" id="root" data-composition-id="ticket-inbox" data-width="1920" data-height="1080" data-duration="12" data-start="0">
+        <!-- Scan-line overlay -->
+        <div data-hf-id="hf-8pzc" class="scanlines"></div>
+
+        <!-- Ambient particles -->
+        <div data-hf-id="hf-b20h" class="particles">
+          <div data-hf-id="hf-w47a" class="particle"></div>
+          <div data-hf-id="hf-l4cq" class="particle"></div>
+          <div data-hf-id="hf-linr" class="particle"></div>
+          <div data-hf-id="hf-lwys" class="particle"></div>
+          <div data-hf-id="hf-mb9t" class="particle"></div>
+          <div data-hf-id="hf-mpku" class="particle"></div>
+          <div data-hf-id="hf-n3vv" class="particle"></div>
+          <div data-hf-id="hf-ni6w" class="particle"></div>
+        </div>
+
+        <!-- Fixed Header -->
+        <div data-hf-id="hf-zrse" class="header" data-layout-ignore="">
+          <div data-hf-id="hf-8e6r" class="header-title">
+            <div data-hf-id="hf-lu65" class="dot"></div>
+            Ops Ticketing · Datacenter Incidents
+          </div>
+          <div data-hf-id="hf-77im" class="header-right">
+            <div data-hf-id="hf-s71v" class="ticket-counter">Open: <span data-hf-id="hf-vocq" id="ticket-count">1,847</span></div>
+            <div data-hf-id="hf-9hoa" class="status-indicator">
+              <div data-hf-id="hf-jure" class="status-dot" id="status-dot"></div>
+              <span data-hf-id="hf-1eki" id="status-text">Systems Nominal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scroll wrapper -->
+        <div data-hf-id="hf-4mfy" class="scroll-wrapper" data-layout-allow-overflow="" data-layout-allow-occlusion="">
+          <div data-hf-id="hf-7mkr" class="ticket-container" id="ticket-container" data-layout-allow-overflow="">
+            <div data-hf-id="hf-dfhh" class="ticket-card priority-critical" data-index="0">
+              <div data-hf-id="hf-sqh4" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-dwqi" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-3lzw" class="ticket-content">
+                <div data-hf-id="hf-u5b2" class="ticket-header">
+                  <span data-hf-id="hf-7ywi" class="ticket-id">DC-4821</span>
+                  <span data-hf-id="hf-vac9" class="ticket-title">Storage capacity warning – RAID array approaching 92% on node-17</span>
+                </div>
+                <div data-hf-id="hf-nive" class="ticket-meta">
+                  <span data-hf-id="hf-zbci" class="ticket-timestamp">2m ago</span>
+                  <span data-hf-id="hf-50l4" class="assignee">Assigned: Storage Team</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-cnto" class="ticket-card priority-critical" data-index="1">
+              <div data-hf-id="hf-fekg" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-jvry" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-w8ic" class="ticket-content">
+                <div data-hf-id="hf-95qa" class="ticket-header">
+                  <span data-hf-id="hf-c9uv" class="ticket-id">INC-7392</span>
+                  <span data-hf-id="hf-3alo" class="ticket-title">DNS resolution error – Multiple recursive queries timing out in zone dc-east</span>
+                </div>
+                <div data-hf-id="hf-y9la" class="ticket-meta">
+                  <span data-hf-id="hf-98fs" class="ticket-timestamp">4m ago</span>
+                  <span data-hf-id="hf-tifc" class="assignee">Assigned: Network Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-lbpj" class="ticket-card priority-critical" data-index="2">
+              <div data-hf-id="hf-e7nd" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-ka2z" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-v1l9" class="ticket-content">
+                <div data-hf-id="hf-9k1b" class="ticket-header">
+                  <span data-hf-id="hf-s77t" class="ticket-id">DC-4819</span>
+                  <span data-hf-id="hf-dh4w" class="ticket-title">High CPU temperature alert – Rack B4 servers exceeding thermal threshold</span>
+                </div>
+                <div data-hf-id="hf-ynwb" class="ticket-meta">
+                  <span data-hf-id="hf-57sk" class="ticket-timestamp">8m ago</span>
+                  <span data-hf-id="hf-b6bi" class="assignee">Assigned: Environmental</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-hs7b" class="ticket-card priority-high" data-index="3">
+              <div data-hf-id="hf-1ruu" class="priority-badge high">High</div>
+              <div data-hf-id="hf-716n" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-vfwa" class="ticket-content">
+                <div data-hf-id="hf-9ycc" class="ticket-header">
+                  <span data-hf-id="hf-kkr6" class="ticket-id">NET-3284</span>
+                  <span data-hf-id="hf-a1q7" class="ticket-title">Network interface flapping – eth2 on core-switch-03</span>
+                </div>
+                <div data-hf-id="hf-z27c" class="ticket-meta">
+                  <span data-hf-id="hf-rir9" class="ticket-timestamp">12m ago</span>
+                  <span data-hf-id="hf-azuo" class="assignee">Assigned: Network Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-lqbc" class="ticket-card priority-high" data-index="4">
+              <div data-hf-id="hf-xi6i" class="priority-badge high">High</div>
+              <div data-hf-id="hf-ra2n" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-xfff" class="ticket-content">
+                <div data-hf-id="hf-acnd" class="ticket-header">
+                  <span data-hf-id="hf-6cpe" class="ticket-id">BAK-1092</span>
+                  <span data-hf-id="hf-ga5p" class="ticket-title">Backup job failed – Nightly snapshot of prod-db-cluster timed out</span>
+                </div>
+                <div data-hf-id="hf-wa25" class="ticket-meta">
+                  <span data-hf-id="hf-3ngb" class="ticket-timestamp">18m ago</span>
+                  <span data-hf-id="hf-7w1o" class="assignee">Assigned: Backup Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-p9tk" class="ticket-card priority-critical" data-index="5">
+              <div data-hf-id="hf-elye" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-koe0" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-xtqg" class="ticket-content">
+                <div data-hf-id="hf-aqye" class="ticket-header">
+                  <span data-hf-id="hf-zgcr" class="ticket-id">PWR-5571</span>
+                  <span data-hf-id="hf-s4x7" class="ticket-title">Power redundancy degraded – UPS-2 reporting low battery health</span>
+                </div>
+                <div data-hf-id="hf-wod6" class="ticket-meta">
+                  <span data-hf-id="hf-pw3g" class="ticket-timestamp">22m ago</span>
+                  <span data-hf-id="hf-adgb" class="assignee">Assigned: Facilities</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-qg36" class="ticket-card priority-high" data-index="6">
+              <div data-hf-id="hf-xwhj" class="priority-badge high">High</div>
+              <div data-hf-id="hf-qvrm" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-wmtd" class="ticket-content">
+                <div data-hf-id="hf-b59f" class="ticket-header">
+                  <span data-hf-id="hf-z4zi" class="ticket-id">SEC-2847</span>
+                  <span data-hf-id="hf-r598" class="ticket-title">Certificate expiry warning – internal.api.datacenter.local expires in 6 days</span>
+                </div>
+                <div data-hf-id="hf-x2o7" class="ticket-meta">
+                  <span data-hf-id="hf-rp62" class="ticket-timestamp">28m ago</span>
+                  <span data-hf-id="hf-kifo" class="assignee">Assigned: Security Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-wlsz" class="ticket-card priority-high" data-index="7">
+              <div data-hf-id="hf-yask" class="priority-badge high">High</div>
+              <div data-hf-id="hf-qhgl" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-x14e" class="ticket-content">
+                <div data-hf-id="hf-bjkg" class="ticket-header">
+                  <span data-hf-id="hf-xh2b" class="ticket-id">STG-6193</span>
+                  <span data-hf-id="hf-brzk" class="ticket-title">Disk I/O latency spike – Storage pool "fast-ssd-01" exceeding 50ms</span>
+                </div>
+                <div data-hf-id="hf-xgz8" class="ticket-meta">
+                  <span data-hf-id="hf-9q09" class="ticket-timestamp">34m ago</span>
+                  <span data-hf-id="hf-zvgw" class="assignee">Assigned: Storage Team</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-lzvx" class="ticket-card priority-critical" data-index="8">
+              <div data-hf-id="hf-df1b" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-hw8t" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-z0nj" class="ticket-content">
+                <div data-hf-id="hf-5kz1" class="ticket-header">
+                  <span data-hf-id="hf-ong4" class="ticket-id">IAM-4421</span>
+                  <span data-hf-id="hf-v6zh" class="ticket-title">Authentication service degraded – SSO latency &gt; 800ms</span>
+                </div>
+                <div data-hf-id="hf-11qh" class="ticket-meta">
+                  <span data-hf-id="hf-f1ph" class="ticket-timestamp">38m ago</span>
+                  <span data-hf-id="hf-qzgd" class="assignee">Assigned: Identity Team</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-igdp" class="ticket-card priority-high" data-index="9">
+              <div data-hf-id="hf-yp3l" class="priority-badge high">High</div>
+              <div data-hf-id="hf-t9ls" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-zeyk" class="ticket-content">
+                <div data-hf-id="hf-5za2" class="ticket-header">
+                  <span data-hf-id="hf-emr2" class="ticket-id">ENV-7738</span>
+                  <span data-hf-id="hf-rx86" class="ticket-title">Cooling unit anomaly – CRAC unit 4 airflow reduced by 40%</span>
+                </div>
+                <div data-hf-id="hf-1g1i" class="ticket-meta">
+                  <span data-hf-id="hf-vzmq" class="ticket-timestamp">42m ago</span>
+                  <span data-hf-id="hf-uk6a" class="assignee">Assigned: Environmental</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-zg4e" class="ticket-card priority-medium" data-index="10">
+              <div data-hf-id="hf-tzc4" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-21vk" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-s9m4" class="ticket-content">
+                <div data-hf-id="hf-8zg6" class="ticket-header">
+                  <span data-hf-id="hf-nfjh" class="ticket-id">DC-4815</span>
+                  <span data-hf-id="hf-m7f0" class="ticket-title">Virtual machine sprawl detected – 47 idle VMs on cluster-prod-03</span>
+                </div>
+                <div data-hf-id="hf-2nx6" class="ticket-meta">
+                  <span data-hf-id="hf-vo6m" class="ticket-timestamp">51m ago</span>
+                  <span data-hf-id="hf-pld7" class="assignee">Assigned: Virtualization</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-3e8f" class="ticket-card priority-medium" data-index="11">
+              <div data-hf-id="hf-7sgs" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-wfeg" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-rvb3" class="ticket-content">
+                <div data-hf-id="hf-8l55" class="ticket-header">
+                  <span data-hf-id="hf-lro9" class="ticket-id">NET-3281</span>
+                  <span data-hf-id="hf-21yt" class="ticket-title">BGP session reset – Peer AS 64512 flapping on edge-router-02</span>
+                </div>
+                <div data-hf-id="hf-29m5" class="ticket-meta">
+                  <span data-hf-id="hf-i71r" class="ticket-timestamp">58m ago</span>
+                  <span data-hf-id="hf-9sxl" class="assignee">Assigned: Network Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-mr13" class="ticket-card priority-low" data-index="12">
+              <div data-hf-id="hf-9tq2" class="priority-badge low">Low</div>
+              <div data-hf-id="hf-u0xd" class="ticket-icon low">●</div>
+              <div data-hf-id="hf-rh02" class="ticket-content">
+                <div data-hf-id="hf-9s28" class="ticket-header">
+                  <span data-hf-id="hf-snwm" class="ticket-id">INF-8829</span>
+                  <span data-hf-id="hf-0j3m" class="ticket-title">Firmware update available – 12 Dell PowerEdge servers pending BIOS patch</span>
+                </div>
+                <div data-hf-id="hf-3gj8" class="ticket-meta">
+                  <span data-hf-id="hf-gila" class="ticket-timestamp">1h ago</span>
+                  <span data-hf-id="hf-ujrt" class="assignee">Assigned: Infrastructure</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-zmq4" class="ticket-card priority-high" data-index="13">
+              <div data-hf-id="hf-z3em" class="priority-badge high">High</div>
+              <div data-hf-id="hf-svar" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-r2p1" class="ticket-content">
+                <div data-hf-id="hf-9dr7" class="ticket-header">
+                  <span data-hf-id="hf-fka9" class="ticket-id">DB-9914</span>
+                  <span data-hf-id="hf-slue" class="ticket-title">Replication lag warning – PostgreSQL primary-replica delay exceeds 30s</span>
+                </div>
+                <div data-hf-id="hf-3287" class="ticket-meta">
+                  <span data-hf-id="hf-ou0y" class="ticket-timestamp">1h ago</span>
+                  <span data-hf-id="hf-pfhz" class="assignee">Assigned: Database Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-c24a" class="ticket-card priority-medium" data-index="14">
+              <div data-hf-id="hf-6ljp" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-v8hd" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-tuu8" class="ticket-content">
+                <div data-hf-id="hf-7e82" class="ticket-header">
+                  <span data-hf-id="hf-zxlk" class="ticket-id">SEC-2845</span>
+                  <span data-hf-id="hf-ykd2" class="ticket-title">Failed login attempts – 23 failed SSH attempts from 192.168.45.12</span>
+                </div>
+                <div data-hf-id="hf-495a" class="ticket-meta">
+                  <span data-hf-id="hf-p8bz" class="ticket-timestamp">1h ago</span>
+                  <span data-hf-id="hf-web0" class="assignee">Assigned: Security Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-4yw1" class="ticket-card priority-critical" data-index="15">
+              <div data-hf-id="hf-dtcc" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-iaju" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-tgj7" class="ticket-content">
+                <div data-hf-id="hf-6zx1" class="ticket-header">
+                  <span data-hf-id="hf-q7oo" class="ticket-id">DC-4812</span>
+                  <span data-hf-id="hf-5ln3" class="ticket-title">Kubernetes pod crash loop – payment-service restarting every 45s</span>
+                </div>
+                <div data-hf-id="hf-3uu9" class="ticket-meta">
+                  <span data-hf-id="hf-pmn0" class="ticket-timestamp">1h ago</span>
+                  <span data-hf-id="hf-32vd" class="assignee">Assigned: Platform Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-1kmr" class="ticket-card priority-low" data-index="16">
+              <div data-hf-id="hf-593y" class="priority-badge low">Low</div>
+              <div data-hf-id="hf-cq3p" class="ticket-icon low">●</div>
+              <div data-hf-id="hf-t286" class="ticket-content">
+                <div data-hf-id="hf-86u4" class="ticket-header">
+                  <span data-hf-id="hf-oouc" class="ticket-id">INF-8827</span>
+                  <span data-hf-id="hf-u23e" class="ticket-title">Cable management audit – Row C patch panel labels outdated</span>
+                </div>
+                <div data-hf-id="hf-51rc" class="ticket-meta">
+                  <span data-hf-id="hf-zw0p" class="ticket-timestamp">2h ago</span>
+                  <span data-hf-id="hf-4h5n" class="assignee">Assigned: Facilities</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-egbs" class="ticket-card priority-high" data-index="17">
+              <div data-hf-id="hf-zhpn" class="priority-badge high">High</div>
+              <div data-hf-id="hf-sgzq" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-snx5" class="ticket-content">
+                <div data-hf-id="hf-7sj3" class="ticket-header">
+                  <span data-hf-id="hf-472u" class="ticket-id">PWR-5569</span>
+                  <span data-hf-id="hf-x9lu" class="ticket-title">PDU overload warning – Rack A7 drawing 89% of rated capacity</span>
+                </div>
+                <div data-hf-id="hf-4ngb" class="ticket-meta">
+                  <span data-hf-id="hf-strh" class="ticket-timestamp">2h ago</span>
+                  <span data-hf-id="hf-42um" class="assignee">Assigned: Facilities</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-qvpy" class="ticket-card priority-medium" data-index="18">
+              <div data-hf-id="hf-6zuq" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-vmse" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-p35w" class="ticket-content">
+                <div data-hf-id="hf-5szy" class="ticket-header">
+                  <span data-hf-id="hf-pf2m" class="ticket-id">DC-4810</span>
+                  <span data-hf-id="hf-lvlo" class="ticket-title">Log aggregation delay – Fluentd buffer 87% full on collector-02</span>
+                </div>
+                <div data-hf-id="hf-5ude" class="ticket-meta">
+                  <span data-hf-id="hf-u0ok" class="ticket-timestamp">2h ago</span>
+                  <span data-hf-id="hf-6bcn" class="assignee">Assigned: Observability</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-mnjo" class="ticket-card priority-low" data-index="19">
+              <div data-hf-id="hf-5nez" class="priority-badge low">Low</div>
+              <div data-hf-id="hf-dx0s" class="ticket-icon low">●</div>
+              <div data-hf-id="hf-oouv" class="ticket-content">
+                <div data-hf-id="hf-5eox" class="ticket-header">
+                  <span data-hf-id="hf-nw8a" class="ticket-id">INF-8825</span>
+                  <span data-hf-id="hf-ask9" class="ticket-title">Asset inventory discrepancy – 3 switches unaccounted in CMDB</span>
+                </div>
+                <div data-hf-id="hf-5g2d" class="ticket-meta">
+                  <span data-hf-id="hf-kgmk" class="ticket-timestamp">3h ago</span>
+                  <span data-hf-id="hf-e8od" class="assignee">Assigned: Infrastructure</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-dbgj" class="ticket-card priority-medium" data-index="20">
+              <div data-hf-id="hf-8zdv" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-ufvb" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-fpdz" class="ticket-content">
+                <div data-hf-id="hf-ad71" class="ticket-header">
+                  <span data-hf-id="hf-94ja" class="ticket-id">NET-3279</span>
+                  <span data-hf-id="hf-40q5" class="ticket-title">VLAN misconfiguration – Guest network traffic leaking into prod segment</span>
+                </div>
+                <div data-hf-id="hf-ktg1" class="ticket-meta">
+                  <span data-hf-id="hf-tvpg" class="ticket-timestamp">3h ago</span>
+                  <span data-hf-id="hf-a78m" class="assignee">Assigned: Network Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-o58t" class="ticket-card priority-low" data-index="21">
+              <div data-hf-id="hf-61q0" class="priority-badge low">Low</div>
+              <div data-hf-id="hf-dipr" class="ticket-icon low">●</div>
+              <div data-hf-id="hf-g3p0" class="ticket-content">
+                <div data-hf-id="hf-ari2" class="ticket-header">
+                  <span data-hf-id="hf-v1ix" class="ticket-id">DOC-1156</span>
+                  <span data-hf-id="hf-1qvf" class="ticket-title">Runbook update needed – DR failover procedure v2.3 outdated</span>
+                </div>
+                <div data-hf-id="hf-l7r2" class="ticket-meta">
+                  <span data-hf-id="hf-k7mn" class="ticket-timestamp">4h ago</span>
+                  <span data-hf-id="hf-tdu8" class="assignee">Assigned: Documentation</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-5f8h" class="ticket-card priority-medium" data-index="22">
+              <div data-hf-id="hf-9dow" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-uu6c" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-ewrx" class="ticket-content">
+                <div data-hf-id="hf-b5t3" class="ticket-header">
+                  <span data-hf-id="hf-7y3h" class="ticket-id">LOG-3341</span>
+                  <span data-hf-id="hf-huq8" class="ticket-title">Log rotation backlog – /var/log filling on web-proxy-05</span>
+                </div>
+                <div data-hf-id="hf-lm23" class="ticket-meta">
+                  <span data-hf-id="hf-5f6n" class="ticket-timestamp">4h ago</span>
+                  <span data-hf-id="hf-j1tj" class="assignee">Assigned: Observability</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-qd6p" class="ticket-card priority-high" data-index="23">
+              <div data-hf-id="hf-zw0o" class="priority-badge high">High</div>
+              <div data-hf-id="hf-s2op" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-fb2y" class="ticket-content">
+                <div data-hf-id="hf-bk44" class="ticket-header">
+                  <span data-hf-id="hf-55h0" class="ticket-id">NET-3277</span>
+                  <span data-hf-id="hf-lnrq" class="ticket-title">MTU mismatch detected – jumbo frames dropping on storage VLAN</span>
+                </div>
+                <div data-hf-id="hf-m0d4" class="ticket-meta">
+                  <span data-hf-id="hf-bcc2" class="ticket-timestamp">5h ago</span>
+                  <span data-hf-id="hf-90bj" class="assignee">Assigned: Network Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-5auh" class="ticket-card priority-critical" data-index="24">
+              <div data-hf-id="hf-cmf9" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-iouv" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-ham3" class="ticket-content">
+                <div data-hf-id="hf-byf5" class="ticket-header">
+                  <span data-hf-id="hf-xjre" class="ticket-id">SEC-2843</span>
+                  <span data-hf-id="hf-m4c2" class="ticket-title">Intrusion detection alert – anomalous outbound traffic from node-22</span>
+                </div>
+                <div data-hf-id="hf-j87x" class="ticket-meta">
+                  <span data-hf-id="hf-p052" class="ticket-timestamp">5h ago</span>
+                  <span data-hf-id="hf-v7dx" class="assignee">Assigned: Security Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-wrcm" class="ticket-card priority-medium" data-index="25">
+              <div data-hf-id="hf-86rt" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-tn99" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-hox4" class="ticket-content">
+                <div data-hf-id="hf-ccq6" class="ticket-header">
+                  <span data-hf-id="hf-ero7" class="ticket-id">DB-9912</span>
+                  <span data-hf-id="hf-aa95" class="ticket-title">Connection pool exhaustion – Redis cluster hitting max clients</span>
+                </div>
+                <div data-hf-id="hf-jmiy" class="ticket-meta">
+                  <span data-hf-id="hf-peg3" class="ticket-timestamp">5h ago</span>
+                  <span data-hf-id="hf-7u7r" class="assignee">Assigned: Database Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-6wyi" class="ticket-card priority-low" data-index="26">
+              <div data-hf-id="hf-39kt" class="priority-badge low">Low</div>
+              <div data-hf-id="hf-epmu" class="ticket-icon low">●</div>
+              <div data-hf-id="hf-gi01" class="ticket-content">
+                <div data-hf-id="hf-cr17" class="ticket-header">
+                  <span data-hf-id="hf-qa2g" class="ticket-id">INF-8823</span>
+                  <span data-hf-id="hf-h44p" class="ticket-title">HVAC filter replacement due – Unit 7 approaching 90-day interval</span>
+                </div>
+                <div data-hf-id="hf-k0tz" class="ticket-meta">
+                  <span data-hf-id="hf-kjzh" class="ticket-timestamp">6h ago</span>
+                  <span data-hf-id="hf-3ojl" class="assignee">Assigned: Facilities</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-bjl1" class="ticket-card priority-high" data-index="27">
+              <div data-hf-id="hf-0abp" class="priority-badge high">High</div>
+              <div data-hf-id="hf-ohxg" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-gwb2" class="ticket-content">
+                <div data-hf-id="hf-d5c8" class="ticket-header">
+                  <span data-hf-id="hf-td6n" class="ticket-id">DC-4808</span>
+                  <span data-hf-id="hf-r34b" class="ticket-title">Container image vulnerability – 3 critical CVEs in base nginx image</span>
+                </div>
+                <div data-hf-id="hf-kf50" class="ticket-meta">
+                  <span data-hf-id="hf-eme9" class="ticket-timestamp">6h ago</span>
+                  <span data-hf-id="hf-90zh" class="assignee">Assigned: Platform Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-lvuz" class="ticket-card priority-medium" data-index="28">
+              <div data-hf-id="hf-8l2u" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-u1ka" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-ivu7" class="ticket-content">
+                <div data-hf-id="hf-djn9" class="ticket-header">
+                  <span data-hf-id="hf-080k" class="ticket-id">PWR-5567</span>
+                  <span data-hf-id="hf-sxup" class="ticket-title">Generator test overdue – Backup diesel gen-set monthly test missed</span>
+                </div>
+                <div data-hf-id="hf-nzw9" class="ticket-meta">
+                  <span data-hf-id="hf-ftbc" class="ticket-timestamp">6h ago</span>
+                  <span data-hf-id="hf-3a8k" class="assignee">Assigned: Facilities</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-h56k" class="ticket-card priority-critical" data-index="29">
+              <div data-hf-id="hf-d0qa" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-j35w" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-ja58" class="ticket-content">
+                <div data-hf-id="hf-dxya" class="ticket-header">
+                  <span data-hf-id="hf-wog9" class="ticket-id">STG-6191</span>
+                  <span data-hf-id="hf-e79c" class="ticket-title">ZFS pool degradation – 2 disks in resilver on nas-farm-02</span>
+                </div>
+                <div data-hf-id="hf-oe7a" class="ticket-meta">
+                  <span data-hf-id="hf-o8hc" class="ticket-timestamp">7h ago</span>
+                  <span data-hf-id="hf-yojt" class="assignee">Assigned: Storage Team</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-bw08" class="ticket-card priority-medium" data-index="30">
+              <div data-hf-id="hf-47pj" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-z7jn" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-tsxq" class="ticket-content">
+                <div data-hf-id="hf-9lj8" class="ticket-header">
+                  <span data-hf-id="hf-1al3" class="ticket-id">IAM-4419</span>
+                  <span data-hf-id="hf-zcmz" class="ticket-title">MFA token sync drift – 12 users reporting OTP failures</span>
+                </div>
+                <div data-hf-id="hf-k1s8" class="ticket-meta">
+                  <span data-hf-id="hf-q18o" class="ticket-timestamp">7h ago</span>
+                  <span data-hf-id="hf-ul8x" class="assignee">Assigned: Identity Team</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-38jy" class="ticket-card priority-low" data-index="31">
+              <div data-hf-id="hf-3nvu" class="priority-badge low">Low</div>
+              <div data-hf-id="hf-ebbt" class="ticket-icon low">●</div>
+              <div data-hf-id="hf-temp" class="ticket-content">
+                <div data-hf-id="hf-9787" class="ticket-header">
+                  <span data-hf-id="hf-h0l8" class="ticket-id">ENV-7736</span>
+                  <span data-hf-id="hf-1ifh" class="ticket-title">Humidity sensor calibration – Zone C reading 5% off baseline</span>
+                </div>
+                <div data-hf-id="hf-jnh7" class="ticket-meta">
+                  <span data-hf-id="hf-oubl" class="ticket-timestamp">7h ago</span>
+                  <span data-hf-id="hf-uyhb" class="assignee">Assigned: Environmental</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-1wkv" class="ticket-card priority-high" data-index="32">
+              <div data-hf-id="hf-0omq" class="priority-badge high">High</div>
+              <div data-hf-id="hf-o3mf" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-uljs" class="ticket-content">
+                <div data-hf-id="hf-8sx6" class="ticket-header">
+                  <span data-hf-id="hf-4cuy" class="ticket-id">NET-3275</span>
+                  <span data-hf-id="hf-d6go" class="ticket-title">ARP cache overflow – core-router-01 hitting max entries</span>
+                </div>
+                <div data-hf-id="hf-j966" class="ticket-meta">
+                  <span data-hf-id="hf-dpab" class="ticket-timestamp">8h ago</span>
+                  <span data-hf-id="hf-9emk" class="assignee">Assigned: Network Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-mrhv" class="ticket-card priority-medium" data-index="33">
+              <div data-hf-id="hf-4m0k" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-zluo" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-u78r" class="ticket-content">
+                <div data-hf-id="hf-8em5" class="ticket-header">
+                  <span data-hf-id="hf-qzch" class="ticket-id">DC-4806</span>
+                  <span data-hf-id="hf-5ucf" class="ticket-title">Prometheus scrape timeout – 8 targets exceeding 30s threshold</span>
+                </div>
+                <div data-hf-id="hf-iuv5" class="ticket-meta">
+                  <span data-hf-id="hf-5s5f" class="ticket-timestamp">8h ago</span>
+                  <span data-hf-id="hf-inii" class="assignee">Assigned: Observability</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-6mcp" class="ticket-card priority-high" data-index="34">
+              <div data-hf-id="hf-zoy6" class="priority-badge high">High</div>
+              <div data-hf-id="hf-6fx9" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-s7pm" class="ticket-content">
+                <div data-hf-id="hf-b6rc" class="ticket-header">
+                  <span data-hf-id="hf-ycdg" class="ticket-id">SEC-2841</span>
+                  <span data-hf-id="hf-wh3w" class="ticket-title">SSH key rotation overdue – 47 keys older than 90 days</span>
+                </div>
+                <div data-hf-id="hf-igk4" class="ticket-meta">
+                  <span data-hf-id="hf-5due" class="ticket-timestamp">8h ago</span>
+                  <span data-hf-id="hf-vloy" class="assignee">Assigned: Security Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-odvr" class="ticket-card priority-critical" data-index="35">
+              <div data-hf-id="hf-btt7" class="priority-badge critical">Critical</div>
+              <div data-hf-id="hf-mnx5" class="ticket-icon critical">●</div>
+              <div data-hf-id="hf-rtel" class="ticket-content">
+                <div data-hf-id="hf-asgb" class="ticket-header">
+                  <span data-hf-id="hf-dz25" class="ticket-id">DB-9910</span>
+                  <span data-hf-id="hf-ikzi" class="ticket-title">WAL archiving failure – PostgreSQL WAL segment not shipped to S3</span>
+                </div>
+                <div data-hf-id="hf-i293" class="ticket-meta">
+                  <span data-hf-id="hf-ypkm" class="ticket-timestamp">9h ago</span>
+                  <span data-hf-id="hf-7fwq" class="assignee">Assigned: Database Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-3zs6" class="ticket-card priority-medium" data-index="36">
+              <div data-hf-id="hf-4k90" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-zba0" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-t0bo" class="ticket-content">
+                <div data-hf-id="hf-ae5a" class="ticket-header">
+                  <span data-hf-id="hf-75bg" class="ticket-id">BAK-1090</span>
+                  <span data-hf-id="hf-ewwk" class="ticket-title">Offsite replication lag – DR site falling behind by 45 minutes</span>
+                </div>
+                <div data-hf-id="hf-hny2" class="ticket-meta">
+                  <span data-hf-id="hf-e0d6" class="ticket-timestamp">9h ago</span>
+                  <span data-hf-id="hf-t56c" class="assignee">Assigned: Backup Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-b4s0" class="ticket-card priority-low" data-index="37">
+              <div data-hf-id="hf-426v" class="priority-badge low">Low</div>
+              <div data-hf-id="hf-fi8w" class="ticket-icon low">●</div>
+              <div data-hf-id="hf-sm0n" class="ticket-content">
+                <div data-hf-id="hf-9zu9" class="ticket-header">
+                  <span data-hf-id="hf-phge" class="ticket-id">INF-8821</span>
+                  <span data-hf-id="hf-2lik" class="ticket-title">Server rack labeling – Row D needs updated asset tags</span>
+                </div>
+                <div data-hf-id="hf-h9n1" class="ticket-meta">
+                  <span data-hf-id="hf-dwbo" class="ticket-timestamp">10h ago</span>
+                  <span data-hf-id="hf-2vxj" class="assignee">Assigned: Facilities</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-j8cl" class="ticket-card priority-high" data-index="38">
+              <div data-hf-id="hf-zan5" class="priority-badge high">High</div>
+              <div data-hf-id="hf-6u8a" class="ticket-icon high">●</div>
+              <div data-hf-id="hf-wzdy" class="ticket-content">
+                <div data-hf-id="hf-crzg" class="ticket-header">
+                  <span data-hf-id="hf-rryj" class="ticket-id">DC-4804</span>
+                  <span data-hf-id="hf-n3xe" class="ticket-title">Ingress controller saturated – nginx hitting 502 on peak traffic</span>
+                </div>
+                <div data-hf-id="hf-n88g" class="ticket-meta">
+                  <span data-hf-id="hf-x4t8" class="ticket-timestamp">10h ago</span>
+                  <span data-hf-id="hf-a7wk" class="assignee">Assigned: Platform Ops</span>
+                </div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-l82h" class="ticket-card priority-medium" data-index="39">
+              <div data-hf-id="hf-45xz" class="priority-badge medium">Medium</div>
+              <div data-hf-id="hf-ywyz" class="ticket-icon medium">●</div>
+              <div data-hf-id="hf-wl2x" class="ticket-content">
+                <div data-hf-id="hf-cdof" class="ticket-header">
+                  <span data-hf-id="hf-g7z6" class="ticket-id">ENV-7734</span>
+                  <span data-hf-id="hf-j461" class="ticket-title">Water leak sensor triggered – Sub-floor sensor in Zone A</span>
+                </div>
+                <div data-hf-id="hf-mtxf" class="ticket-meta">
+                  <span data-hf-id="hf-5f9t" class="ticket-timestamp">11h ago</span>
+                  <span data-hf-id="hf-vcsc" class="assignee">Assigned: Environmental</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        var tl = gsap.timeline({ paused: true });
+
+        var TICKET_HEIGHT = 109;
+        var TOTAL_TICKETS = 40;
+        var TOTAL_SCROLL = TOTAL_TICKETS * TICKET_HEIGHT;
+        var SCROLL_DURATION = 12;
+
+        var container = document.getElementById("ticket-container");
+
+        // Header reveal at t=0.8s
+        tl.fromTo(".header",
+          { opacity: 0, y: -20 },
+          { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" },
+          0.8
+        );
+
+        // Ticket cards stagger in at t=1.0s
+        tl.fromTo(".ticket-card",
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.6, ease: "power2.out", stagger: 0.03 },
+          1.0
+        );
+
+        // Main scroll animation starting at t=1.5s
+        tl.to(container, {
+          y: -TOTAL_SCROLL,
+          duration: SCROLL_DURATION - 1.5,
+          ease: "none"
+        }, 1.5);
+
+        var counterEl = document.getElementById("ticket-count");
+        var counterObj = { value: 1847 };
+        tl.to(counterObj, {
+          value: 1852,
+          duration: 11,
+          ease: "power1.inOut",
+          onUpdate: function() {
+            counterEl.textContent = Math.round(counterObj.value).toLocaleString();
+          }
+        }, 0);
+
+        var statusDot = document.getElementById("status-dot");
+        var flickerTimes = [2.0, 3.5, 5.0, 6.5, 7.8, 9.2, 10.5, 11.3];
+        var flickerOpacities = [0.3, 0.5, 0.2, 0.6, 0.3, 0.4, 0.2, 0.5];
+
+        for (var fi = 0; fi < flickerTimes.length; fi++) {
+          tl.to(statusDot, {
+            opacity: flickerOpacities[fi],
+            duration: 0.05,
+            ease: "none"
+          }, flickerTimes[fi]);
+          tl.to(statusDot, {
+            opacity: 1,
+            duration: 0.05,
+            ease: "none"
+          }, flickerTimes[fi] + 0.05);
+        }
+
+        var cards = document.querySelectorAll(".ticket-card");
+        var viewportCenter = 540;
+
+        for (var ci = 0; ci < cards.length; ci++) {
+          var cardEnterCenter = (ci * TICKET_HEIGHT - viewportCenter + 200) / (TOTAL_SCROLL / SCROLL_DURATION);
+          var cardExitCenter = (ci * TICKET_HEIGHT + TICKET_HEIGHT - viewportCenter + 200) / (TOTAL_SCROLL / SCROLL_DURATION);
+
+          if (cardEnterCenter >= 0 && cardEnterCenter < SCROLL_DURATION) {
+            tl.to(cards[ci], {
+              boxShadow: "inset 0 0 40px rgba(59, 130, 246, 0.12)",
+              duration: 0.3,
+              ease: "power2.inOut",
+              overwrite: "auto"
+            }, cardEnterCenter);
+          }
+          if (cardExitCenter >= 0 && cardExitCenter < SCROLL_DURATION) {
+            tl.to(cards[ci], {
+              boxShadow: "inset 0 0 0px rgba(59, 130, 246, 0)",
+              duration: 0.3,
+              ease: "power2.inOut",
+              overwrite: "auto"
+            }, cardExitCenter);
+          }
+        }
+
+        window.__timelines["ticket-inbox"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

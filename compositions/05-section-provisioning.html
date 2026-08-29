@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+  </head>
+  <body>
+    <template>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        #root {
+          position: absolute;
+          inset: 0;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: #0a0e1a;
+          font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+          color: #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .center-group {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 24px;
+          z-index: 10;
+        }
+
+        .line {
+          width: 0;
+          height: 4px;
+          background: #4fd1c5;
+          border-radius: 2px;
+        }
+
+        .title {
+          font-size: 42px;
+          font-weight: 700;
+          color: #f1f5f9;
+          letter-spacing: 2px;
+          opacity: 0;
+        }
+
+        .subtitle {
+          font-size: 18px;
+          font-weight: 400;
+          color: #94a3b8;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="section-provisioning" data-width="1920" data-height="1080" data-duration="3" data-start="0">
+        <div class="center-group">
+          <div class="line"></div>
+          <div class="title">Provisioning</div>
+          <div class="subtitle">From sign-up to a running VM</div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        var tl = gsap.timeline({ paused: true });
+
+        // Line draws from center
+        tl.fromTo(".line",
+          { width: 0 },
+          { width: 200, duration: 0.9, ease: "power2.out" },
+          0.3
+        );
+
+        // Title fades in + slides up
+        tl.fromTo(".title",
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 1.0, ease: "power2.out" },
+          0.6
+        );
+
+        // Subtitle fades in
+        tl.fromTo(".subtitle",
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" },
+          1.0
+        );
+
+        // Fade to black
+        tl.to("#root", { opacity: 0, duration: 0.6, ease: "power2.inOut" }, 2.4);
+
+        window.__timelines["section-provisioning"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

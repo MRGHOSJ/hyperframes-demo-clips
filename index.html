@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Datacenter Ops — Multi-Scene</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  </head>
+  <body>
+    <div data-hf-id="hf-f87d" id="root" data-composition-id="main" data-duration="49" data-width="1920" data-height="1080" data-start="0">
+
+      <!-- Scene 1: Ops Ticketing Inbox (0–12s) -->
+      <div data-hf-id="hf-6vmg" id="scene-ticket-inbox" data-composition-id="ticket-inbox" data-composition-src="compositions/01-ticket-inbox.html" data-start="0" data-duration="12" data-width="1920" data-height="1080"></div>
+
+      <!-- Scene 2: Terminal + IP Allocation (12.5–22.5s) -->
+      <div data-hf-id="hf-89ym" id="scene-terminal-ip" data-composition-id="terminal-ip" data-composition-src="compositions/02-terminal-ip.html" data-start="12.5" data-duration="10" data-width="1920" data-height="1080"></div>
+
+      <!-- Scene 3: Security Gaps (23–31s) -->
+      <div id="scene-security-gaps" data-composition-id="security-gaps" data-composition-src="compositions/03-security-gaps.html" data-start="23" data-duration="8" data-width="1920" data-height="1080"></div>
+
+      <!-- Scene 4: Product Reveal (31–39s) -->
+      <div id="scene-product-reveal" data-composition-id="product-reveal" data-composition-src="compositions/04-product-reveal.html" data-start="31" data-duration="8" data-width="1920" data-height="1080"></div>
+
+      <!-- Scene 5: Section Title — Provisioning (39–42s) -->
+      <div id="scene-section-provisioning" data-composition-id="section-provisioning" data-composition-src="compositions/05-section-provisioning.html" data-start="39" data-duration="3" data-width="1920" data-height="1080"></div>
+
+      <!-- Scene 6: Section Title — Secure Connectivity (42.5–45.5s) -->
+      <div id="scene-section-connectivity" data-composition-id="section-connectivity" data-composition-src="compositions/06-section-connectivity.html" data-start="42.5" data-duration="3" data-width="1920" data-height="1080"></div>
+
+      <!-- Scene 7: Section Title — Access Control (46–49s) -->
+      <div id="scene-section-access-control" data-composition-id="section-access-control" data-composition-src="compositions/07-section-access-control.html" data-start="46" data-duration="3" data-width="1920" data-height="1080"></div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

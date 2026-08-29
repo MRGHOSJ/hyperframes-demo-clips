@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+  </head>
+  <body>
+    <template>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        #root {
+          position: absolute;
+          inset: 0;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: #0a0e1a;
+          font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+          color: #e2e8f0;
+          display: flex;
+          gap: 0;
+        }
+
+        .scanlines {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 100;
+          background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 0, 0, 0.03) 2px,
+            rgba(0, 0, 0, 0.03) 4px
+          );
+        }
+
+        .terminal-panel {
+          width: 960px;
+          height: 1080px;
+          padding: 40px 32px;
+          display: flex;
+          flex-direction: column;
+          opacity: 0;
+        }
+
+        .terminal-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+
+        .terminal-dots {
+          display: flex;
+          gap: 6px;
+        }
+
+        .terminal-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+        .terminal-dot.red { background: #dc2626; }
+        .terminal-dot.yellow { background: #f59e0b; }
+        .terminal-dot.green { background: #10b981; }
+
+        .terminal-title {
+          font-size: 14px;
+          font-weight: 500;
+          color: #cbd5e1;
+          margin-left: 8px;
+        }
+
+        .terminal-body {
+          flex: 1;
+          background: #111827;
+          border-radius: 12px;
+          border: 1px solid #1f2937;
+          padding: 24px 20px;
+          font-family: "JetBrains Mono", "Consolas", monospace;
+          font-size: 13px;
+          line-height: 1.7;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+        }
+
+        .terminal-line {
+          white-space: pre;
+          opacity: 0;
+          min-height: 1.7em;
+        }
+
+        .terminal-line .prompt {
+          color: #3b82f6;
+        }
+
+        .terminal-line .cmd {
+          color: #e2e8f0;
+        }
+
+        .terminal-line .info {
+          color: #cbd5e1;
+        }
+
+        .terminal-line .tag-info {
+          color: #60a5fa;
+        }
+
+        .terminal-line .tag-ok {
+          color: #10b981;
+        }
+
+        .terminal-line .highlight {
+          color: #f1f5f9;
+          font-weight: 500;
+        }
+
+        .terminal-line .ip {
+          color: #93c5fd;
+        }
+
+        .terminal-line .label {
+          color: #cbd5e1;
+        }
+
+        .terminal-line .success {
+          color: #10b981;
+        }
+
+        .terminal-line .muted {
+          color: #94a3b8;
+        }
+
+        .cursor {
+          display: inline-block;
+          width: 7px;
+          height: 15px;
+          background: #3b82f6;
+          vertical-align: text-bottom;
+          animation: blink 1s step-end infinite;
+          margin-left: 2px;
+        }
+
+        @keyframes blink {
+          50% { opacity: 0; }
+        }
+
+        .ip-panel {
+          width: 960px;
+          height: 1080px;
+          padding: 40px 40px 40px 0;
+          display: flex;
+          flex-direction: column;
+          opacity: 0;
+        }
+
+        .ip-card {
+          flex: 1;
+          background: #111827;
+          border-radius: 12px;
+          border: 1px solid #1f2937;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .ip-card-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid #1f2937;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .ip-card-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #f1f5f9;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .ip-card-title .icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(59, 130, 246, 0.12);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+        }
+
+        .vlan-badge {
+          font-size: 12px;
+          font-weight: 600;
+          color: #93c5fd;
+          background: rgba(59, 130, 246, 0.12);
+          padding: 4px 10px;
+          border-radius: 6px;
+        }
+
+        .ip-card-body {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 0;
+        }
+
+        .network-info {
+          display: flex;
+          gap: 0;
+          border-bottom: 1px solid #1f2937;
+        }
+
+        .network-info-item {
+          flex: 1;
+          padding: 16px 24px;
+          border-right: 1px solid #1f2937;
+          opacity: 0;
+        }
+        .network-info-item:last-child {
+          border-right: none;
+        }
+
+        .network-info-label {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #cbd5e1;
+          margin-bottom: 6px;
+        }
+
+        .network-info-value {
+          font-family: "JetBrains Mono", "Consolas", monospace;
+          font-size: 14px;
+          font-weight: 500;
+          color: #e2e8f0;
+        }
+
+        .ip-list {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          overflow: hidden;
+        }
+
+        .ip-list-header {
+          display: flex;
+          padding: 12px 24px;
+          border-bottom: 1px solid #1f2937;
+        }
+
+        .ip-list-header span {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #cbd5e1;
+        }
+        .ip-list-header .col-ip { flex: 1.2; }
+        .ip-list-header .col-host { flex: 1.5; }
+        .ip-list-header .col-status { flex: 0.8; text-align: right; }
+
+        .ip-row {
+          display: flex;
+          align-items: center;
+          padding: 14px 24px;
+          border-bottom: 1px solid rgba(31, 41, 55, 0.5);
+          opacity: 0;
+        }
+
+        .ip-row .ip-address {
+          flex: 1.2;
+          font-family: "JetBrains Mono", "Consolas", monospace;
+          font-size: 14px;
+          color: #93c5fd;
+          font-weight: 500;
+        }
+
+        .ip-row .hostname {
+          flex: 1.5;
+          font-size: 13px;
+          color: #cbd5e1;
+        }
+
+        .ip-row .status {
+          flex: 0.8;
+          text-align: right;
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+
+        .status-badge {
+          padding: 3px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .status-badge.active {
+          background: rgba(16, 185, 129, 0.12);
+          color: #10b981;
+        }
+
+        .status-dot-sm {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #10b981;
+          animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(16, 185, 129, 0.4); }
+          50% { opacity: 0.5; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
+        }
+
+        .ip-summary {
+          padding: 16px 24px;
+          border-top: 1px solid #1f2937;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          opacity: 0;
+        }
+
+        .ip-summary-left {
+          font-size: 12px;
+          color: #cbd5e1;
+        }
+
+        .ip-summary-left strong {
+          color: #e2e8f0;
+          font-weight: 600;
+        }
+
+        .ip-summary-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .success-icon {
+          color: #10b981;
+          font-size: 14px;
+        }
+
+        .success-text {
+          font-size: 12px;
+          font-weight: 600;
+          color: #10b981;
+        }
+
+        .ambient-glow {
+          position: absolute;
+          width: 400px;
+          height: 400px;
+          border-radius: 50%;
+          filter: blur(120px);
+          opacity: 0.08;
+          pointer-events: none;
+        }
+        .glow-blue {
+          background: #3b82f6;
+          top: 200px;
+          left: 200px;
+        }
+        .glow-cyan {
+          background: #06b6d4;
+          bottom: 200px;
+          right: 200px;
+        }
+      </style>
+
+      <div id="root" data-composition-id="terminal-ip" data-width="1920" data-height="1080" data-duration="10" data-start="0">
+        <div class="scanlines"></div>
+        <div class="ambient-glow glow-blue"></div>
+        <div class="ambient-glow glow-cyan"></div>
+
+        <!-- LEFT: Terminal -->
+        <div class="terminal-panel">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <div class="terminal-dot red"></div>
+              <div class="terminal-dot yellow"></div>
+              <div class="terminal-dot green"></div>
+            </div>
+            <span class="terminal-title">admin@dc-core:~</span>
+          </div>
+          <div class="terminal-body" id="terminal-body">
+            <div class="terminal-line" data-index="0"><span class="prompt">$</span> <span class="cmd">ssh admin@10.0.4.1</span></div>
+            <div class="terminal-line" data-index="1"><span class="info">Authenticating with public key "admin_rsa" ...</span></div>
+            <div class="terminal-line" data-index="2"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="3"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">netstat -rn</span></div>
+            <div class="terminal-line" data-index="4"><span class="info">Routing Tables</span></div>
+            <div class="terminal-line" data-index="5"><span class="info">Destination     Gateway         Genmask         Iface</span></div>
+            <div class="terminal-line" data-index="6"><span class="ip">0.0.0.0</span>         <span class="ip">10.0.0.1</span>        <span class="muted">0.0.0.0/16</span>      eth0</div>
+            <div class="terminal-line" data-index="7"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="8"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">ip addr show eth0</span></div>
+            <div class="terminal-line" data-index="9"><span class="info">inet </span><span class="ip">10.0.4.74/16</span><span class="info"> scope global eth0</span></div>
+            <div class="terminal-line" data-index="10"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="11"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">cat /etc/network/interfaces</span></div>
+            <div class="terminal-line" data-index="12"><span class="label">auto eth0</span></div>
+            <div class="terminal-line" data-index="13"><span class="label">iface eth0 inet static</span></div>
+            <div class="terminal-line" data-index="14"><span class="label">  address </span><span class="ip">10.0.4.12</span></div>
+            <div class="terminal-line" data-index="15"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="16"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">ping -c 4 10.0.4.25</span></div>
+            <div class="terminal-line" data-index="17"><span class="info">64 bytes from </span><span class="ip">10.0.4.25</span><span class="info">: icmp_seq=1 ttl=64 time=0.042 ms</span></div>
+            <div class="terminal-line" data-index="18"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="19"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">nmap -sn 10.0.4.0/24</span></div>
+            <div class="terminal-line" data-index="20"><span class="info">Nmap scan report for </span><span class="ip">10.0.4.12</span><span class="info"> ...</span></div>
+            <div class="terminal-line" data-index="21"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="22"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">traceroute 8.8.8.8</span></div>
+            <div class="terminal-line" data-index="23"><span class="info">1  </span><span class="ip">10.0.4.1</span><span class="info"> (10.0.4.1)  0.521 ms</span></div>
+            <div class="terminal-line" data-index="24"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="25"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">systemctl status networking</span></div>
+            <div class="terminal-line" data-index="26"><span class="success">Active: active (running)</span><span class="info"> since Fri 2026-07-24</span></div>
+            <div class="terminal-line" data-index="27"><span class="muted">──────────────────────────────────────────────────────────</span></div>
+            <div class="terminal-line" data-index="28"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cmd">tail -f /var/log/syslog</span></div>
+            <div class="terminal-line" data-index="29"><span class="info">Jul 24 14:02 ... dhcpd: DHCPACK on </span><span class="ip">10.0.4.1</span></div>
+            <div class="terminal-line" data-index="30"><span class="success">admin@core-01</span><span class="muted">:~ $</span> <span class="cursor" id="cursor-0"></span></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: IP Allocation Panel -->
+        <div class="ip-panel">
+          <div class="ip-card">
+            <div class="ip-card-header">
+              <div class="ip-card-title">
+                <div class="icon">&#128421;</div>
+                IP Allocation
+              </div>
+              <div class="vlan-badge">VLAN 2100</div>
+            </div>
+
+            <div class="ip-card-body">
+              <div class="network-info">
+                <div class="network-info-item">
+                  <div class="network-info-label">Gateway</div>
+                  <div class="network-info-value">10.0.0.1</div>
+                </div>
+                <div class="network-info-item">
+                  <div class="network-info-label">Subnet Mask</div>
+                  <div class="network-info-value">255.255.0.0</div>
+                </div>
+                <div class="network-info-item">
+                  <div class="network-info-label">Broadcast</div>
+                  <div class="network-info-value">10.0.255.255</div>
+                </div>
+              </div>
+
+              <div class="ip-list" data-layout-allow-overflow>
+                <div class="ip-list-header">
+                  <span class="col-ip">IP Address</span>
+                  <span class="col-host">Hostname</span>
+                  <span class="col-status">Status</span>
+                </div>
+
+                <div class="ip-row" data-ip-index="0">
+                  <span class="ip-address">10.0.4.12</span>
+                  <span class="hostname">core-01</span>
+                  <span class="status">
+                    <span class="status-badge active">Active</span>
+                    <span class="status-dot-sm"></span>
+                  </span>
+                </div>
+
+                <div class="ip-row" data-ip-index="1">
+                  <span class="ip-address">10.0.4.25</span>
+                  <span class="hostname">web-frontend-03</span>
+                  <span class="status">
+                    <span class="status-badge active">Active</span>
+                    <span class="status-dot-sm"></span>
+                  </span>
+                </div>
+
+                <div class="ip-row" data-ip-index="2">
+                  <span class="ip-address">10.0.4.31</span>
+                  <span class="hostname">api-gateway-01</span>
+                  <span class="status">
+                    <span class="status-badge active">Active</span>
+                    <span class="status-dot-sm"></span>
+                  </span>
+                </div>
+
+                <div class="ip-row" data-ip-index="3">
+                  <span class="ip-address">10.0.4.42</span>
+                  <span class="hostname">db-primary-02</span>
+                  <span class="status">
+                    <span class="status-badge active">Active</span>
+                    <span class="status-dot-sm"></span>
+                  </span>
+                </div>
+
+                <div class="ip-row" data-ip-index="4">
+                  <span class="ip-address">10.0.4.58</span>
+                  <span class="hostname">cache-redis-03</span>
+                  <span class="status">
+                    <span class="status-badge active">Active</span>
+                    <span class="status-dot-sm"></span>
+                  </span>
+                </div>
+
+                <div class="ip-row" data-ip-index="5">
+                  <span class="ip-address">10.0.4.74</span>
+                  <span class="hostname">worker-queue-01</span>
+                  <span class="status">
+                    <span class="status-badge active">Active</span>
+                    <span class="status-dot-sm"></span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="ip-summary">
+                <div class="ip-summary-left">
+                  <strong>6</strong> of <strong>254</strong> addresses allocated
+                </div>
+                <div class="ip-summary-right">
+                  <span class="success-icon">&#10003;</span>
+                  <span class="success-text">Provisioning Complete</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        var tl = gsap.timeline({ paused: true });
+
+        var LINE_STAGGER = 0.31;
+
+        // Terminal and IP panel fade in
+        tl.fromTo(".terminal-panel",
+          { opacity: 0 },
+          { opacity: 1, duration: 0.4, ease: "power2.out" },
+          0
+        );
+        tl.fromTo(".ip-panel",
+          { opacity: 0, x: 30 },
+          { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" },
+          0.3
+        );
+
+        // Terminal line typing: 31 lines (index 0-30)
+        var terminalLines = document.querySelectorAll(".terminal-line");
+        for (var i = 0; i < terminalLines.length; i++) {
+          var delay = 0.3 + (i * LINE_STAGGER);
+          var dur = (i === 0) ? 0.4 : 0.15;
+          tl.fromTo(terminalLines[i],
+            { opacity: 0, x: -10 },
+            { opacity: 1, x: 0, duration: dur, ease: "power2.out" },
+            delay
+          );
+        }
+
+        // Hide cursor-0 after last line is typed
+        var lastLineDelay = 0.3 + ((terminalLines.length - 1) * LINE_STAGGER) + 0.15;
+        tl.to("#cursor-0", { opacity: 0, duration: 0.1 }, lastLineDelay + 0.5);
+
+        // IP panel: network info items reveal at t=1.5s
+        var networkItems = document.querySelectorAll(".network-info-item");
+        for (var ni = 0; ni < networkItems.length; ni++) {
+          tl.fromTo(networkItems[ni],
+            { opacity: 0, y: 10 },
+            { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
+            1.5 + ni * 0.2
+          );
+        }
+
+        // IP rows appear one by one synced to relevant terminal lines
+        var ipRows = document.querySelectorAll(".ip-row");
+        var ipStartDelay = 0.3 + (16 * LINE_STAGGER); // starts around ping command
+        for (var ri = 0; ri < ipRows.length; ri++) {
+          tl.fromTo(ipRows[ri],
+            { opacity: 0, x: 20 },
+            { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" },
+            ipStartDelay + ri * LINE_STAGGER
+          );
+        }
+
+        // IP summary appears after last row
+        var summaryDelay = ipStartDelay + (ipRows.length * LINE_STAGGER) + 0.3;
+        tl.fromTo(".ip-summary",
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
+          summaryDelay
+        );
+
+        window.__timelines["terminal-ip"] = tl;
+      </script>
+    </template>
+  </body>
+</html>
